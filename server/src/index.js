@@ -4,6 +4,7 @@ import cors from 'cors';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 
+import { pool } from './db/pool.js';
 import { authRouter } from './routes/auth.js';
 import { nationsRouter } from './routes/nations.js';
 import { unitsRouter } from './routes/units.js';
@@ -36,9 +37,35 @@ app.use('/api/units', unitsRouter);
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({
+    error: 'Internal server error',
+    // Surface the underlying cause during development so a missing table
+    // or unreachable database is diagnosable from the browser alone.
+    ...(process.env.NODE_ENV !== 'production' ? { detail: err.message } : {}),
+  });
 });
 
+// Fail fast with an actionable message instead of letting every request
+// 500 mysteriously when the database isn't ready.
+async function assertDatabaseReady() {
+  try {
+    const { rows } = await pool.query('SELECT count(*)::int AS count FROM nations');
+    if (rows[0].count === 0) {
+      console.warn('WARNING: the nations table is empty - run `npm run seed` to import the world map.');
+    }
+  } catch (err) {
+    if (err.code === '42P01') {
+      console.error('Database tables are missing. Run `npm run migrate` then `npm run seed`, and restart.');
+    } else {
+      console.error(`Cannot query PostgreSQL via DATABASE_URL=${process.env.DATABASE_URL}`);
+      console.error(`  -> ${err.message}`);
+      console.error('Is PostgreSQL running? Do the role and database from DATABASE_URL exist?');
+    }
+    process.exit(1);
+  }
+}
+
+await assertDatabaseReady();
 attachSocketHandlers(io);
 startGameLoop(io);
 
