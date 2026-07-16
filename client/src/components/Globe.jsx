@@ -27,9 +27,13 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
   // Set up the viewer once.
   useEffect(() => {
     const viewer = new Cesium.Viewer(containerRef.current, {
-      imageryProvider: new Cesium.OpenStreetMapImageryProvider({
-        url: 'https://a.tile.openstreetmap.org/',
-      }),
+      // `imageryProvider` was removed from the Viewer options in Cesium
+      // 1.107+: it gets silently ignored and the viewer falls back to the
+      // default ion imagery, which 404s without an access token and leaves
+      // a bare blue globe. `baseLayer` is the current way to set imagery.
+      baseLayer: new Cesium.ImageryLayer(
+        new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
+      ),
       terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       baseLayerPicker: false,
       geocoder: false,
