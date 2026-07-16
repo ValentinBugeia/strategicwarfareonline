@@ -20,7 +20,12 @@ CREATE TABLE IF NOT EXISTS nations (
   claimed_at    TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_nations_owner ON nations(owner_user_id);
+-- One nation per player, enforced at the DB level so no interleaving of
+-- concurrent claim requests can hand a player two countries. The partial
+-- unique index doubles as the lookup index on owner_user_id.
+DROP INDEX IF EXISTS idx_nations_owner;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_nations_owner
+  ON nations(owner_user_id) WHERE owner_user_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS units (
   id            SERIAL PRIMARY KEY,

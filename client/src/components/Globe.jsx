@@ -15,10 +15,14 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
   const onSelectNationRef = useRef(onSelectNation);
   const onMoveTargetRef = useRef(onMoveTarget);
   const selectedUnitRef = useRef(selectedUnit);
+  const nationsRef = useRef(nations);
+  const myNationIdRef = useRef(myNationId);
 
   onSelectNationRef.current = onSelectNation;
   onMoveTargetRef.current = onMoveTarget;
   selectedUnitRef.current = selectedUnit;
+  nationsRef.current = nations;
+  myNationIdRef.current = myNationId;
 
   // Set up the viewer once.
   useEffect(() => {
@@ -71,7 +75,9 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
         const isoCode = String(entity.id).padStart(3, '0');
         countryEntitiesRef.current.set(isoCode, entity);
       }
-      applyNationColors(countryEntitiesRef.current, nations, myNationId);
+      // Read ownership through refs: this async load can finish after the
+      // nations fetch, and the mount-time `nations` prop is an empty array.
+      applyNationColors(countryEntitiesRef.current, nationsRef.current, myNationIdRef.current);
     });
 
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);

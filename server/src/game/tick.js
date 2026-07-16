@@ -13,7 +13,7 @@ async function runIncomeTick() {
 }
 
 async function runMovementTick() {
-  const stepKm = (TICK_MS / 1000 / 3600); // hours elapsed this tick, multiplied by speed below
+  const hoursPerTick = TICK_MS / 1000 / 3600;
 
   const { rows: moving } = await pool.query(
     `SELECT id, lat, lon, dest_lat AS "destLat", dest_lon AS "destLon", speed_kmh AS "speedKmh"
@@ -25,7 +25,7 @@ async function runMovementTick() {
     const from = [unit.lon, unit.lat];
     const to = [unit.destLon, unit.destLat];
     const remainingKm = turf.distance(from, to, { units: 'kilometers' });
-    const maxStepKm = unit.speedKmh * stepKm;
+    const maxStepKm = unit.speedKmh * hoursPerTick;
 
     if (remainingKm <= maxStepKm) {
       updates.push({ id: unit.id, lat: unit.destLat, lon: unit.destLon, arrived: true });
