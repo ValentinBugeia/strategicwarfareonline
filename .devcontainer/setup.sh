@@ -5,6 +5,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+if ! command -v psql >/dev/null 2>&1; then
+  echo "[setup] PostgreSQL is not installed - installing (this takes a minute)..."
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq postgresql
+fi
+
 echo "[setup] Starting PostgreSQL..."
 sudo service postgresql start
 

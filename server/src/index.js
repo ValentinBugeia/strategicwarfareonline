@@ -57,9 +57,14 @@ async function assertDatabaseReady() {
     if (err.code === '42P01') {
       console.error('Database tables are missing. Run `npm run migrate` then `npm run seed`, and restart.');
     } else {
+      // AggregateError (e.g. connection refused on every resolved address)
+      // has an empty .message - dig the real causes out of .errors.
+      const detail =
+        err.message || err.errors?.map((e) => e.message).join(' / ') || err.code || String(err);
       console.error(`Cannot query PostgreSQL via DATABASE_URL=${process.env.DATABASE_URL}`);
-      console.error(`  -> ${err.message}`);
+      console.error(`  -> ${detail}`);
       console.error('Is PostgreSQL running? Do the role and database from DATABASE_URL exist?');
+      console.error('In a Codespace, run: bash .devcontainer/setup.sh');
     }
     process.exit(1);
   }
