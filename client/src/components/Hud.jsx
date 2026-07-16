@@ -1,4 +1,17 @@
 import { UNIT_TYPES } from '../unitTypes.js';
+import { unitIconDataUri, OWN_UNIT_COLOR } from '../utils/unitIcons.js';
+
+function UnitIcon({ type, size = 20 }) {
+  return (
+    <img
+      src={unitIconDataUri(type, OWN_UNIT_COLOR)}
+      width={size}
+      height={size}
+      alt=""
+      className="unit-icon"
+    />
+  );
+}
 
 export default function Hud({
   myNation,
@@ -37,10 +50,14 @@ export default function Hud({
         {Object.entries(UNIT_TYPES).map(([type, spec]) => (
           <button
             key={type}
+            className="buy-button"
             onClick={() => onBuyUnit(type)}
             disabled={Number(myNation.money) < spec.cost}
           >
-            Acheter {spec.label} ({spec.cost}💰)
+            <UnitIcon type={type} />
+            <span>
+              {spec.label} — {spec.cost}💰
+            </span>
           </button>
         ))}
       </div>
@@ -55,7 +72,11 @@ export default function Hud({
                 className={selectedUnit?.id === unit.id ? 'selected' : ''}
                 onClick={() => onSelectUnit(selectedUnit?.id === unit.id ? null : unit)}
               >
-                {unit.type} #{unit.id} {unit.destLat ? '(en mouvement)' : ''}
+                <UnitIcon type={unit.type} />
+                <span>
+                  {UNIT_TYPES[unit.type]?.label ?? unit.type} #{unit.id}
+                  {unit.destLat ? ' — en mouvement' : ''}
+                </span>
               </button>
             </li>
           ))}

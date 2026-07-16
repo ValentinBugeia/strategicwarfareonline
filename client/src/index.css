@@ -167,6 +167,18 @@ html, body, #root {
   color: #facc15;
 }
 
+.hud .buy-button,
+.unit-list button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.unit-icon {
+  flex: 0 0 auto;
+  display: block;
+}
+
 .nation-panel {
   position: absolute;
   bottom: 1rem;

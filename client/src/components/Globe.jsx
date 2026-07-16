@@ -4,6 +4,7 @@ import { feature } from 'topojson-client';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import worldAtlas from 'world-atlas/countries-110m.json';
 import { ownerColorHsl } from '../utils/color.js';
+import { unitIconDataUri, OWN_UNIT_COLOR, ENEMY_UNIT_COLOR } from '../utils/unitIcons.js';
 
 const UNCLAIMED_COLOR = Cesium.Color.fromCssColorString('rgba(170,170,170,0.30)');
 const worldGeoJson = feature(worldAtlas, worldAtlas.objects.countries);
@@ -75,6 +76,18 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
       window.__cesiumViewer = viewer; // debugging aid, dev-only
       window.__Cesium = Cesium;
     }
+
+    // Labels-only overlay on top of the clean basemap: transparent
+    // everywhere except place names, so major cities/countries appear for
+    // orientation without bringing back the street-level clutter. It sits
+    // under the country fills (which are semi-transparent), so labels stay
+    // readable through them.
+    viewer.imageryLayers.addImageryProvider(
+      new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c', 'd'],
+      })
+    );
 
     // No real terrain is loaded (flat ellipsoid), so draw polygons at a
     // fixed height instead of clampToGround: ground-clamped primitives
@@ -150,30 +163,46 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
     for (const unit of units) {
       seen.add(unit.id);
       const isMine = unit.nationId === myNationId;
-      const color = isMine ? Cesium.Color.CYAN : Cesium.Color.ORANGERED;
+      const iconColor = isMine ? OWN_UNIT_COLOR : ENEMY_UNIT_COLOR;
       const position = Cesium.Cartesian3.fromDegrees(unit.lon, unit.lat);
+      const isSelected = selectedUnit?.id === unit.id;
       let entity = unitEntitiesRef.current.get(unit.id);
 
       if (!entity) {
         entity = viewer.entities.add({
           position,
-          point: { pixelSize: 10, color, outlineColor: Cesium.Color.WHITE, outlineWidth: 1 },
+          billboard: {
+            image: unitIconDataUri(unit.type, iconColor),
+            width: 34,
+            height: 34,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            // Keep icons a constant on-screen size instead of shrinking
+            // into the globe as the camera pulls back.
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
           label: {
-            text: unit.type,
-            font: '12px sans-serif',
-            pixelOffset: new Cesium.Cartesian2(0, -16),
+            text: `${unit.type} #${unit.id}`,
+            font: '600 12px system-ui, sans-serif',
+            pixelOffset: new Cesium.Cartesian2(0, -24),
             fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 3,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            // Only clutter the map with a name for the selected unit.
+            show: isSelected,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
           },
         });
         unitEntitiesRef.current.set(unit.id, entity);
       } else {
         entity.position = position;
-        entity.point.color = color;
+        entity.billboard.image = unitIconDataUri(unit.type, iconColor);
       }
 
-      entity.point.outlineColor =
-        selectedUnit?.id === unit.id ? Cesium.Color.YELLOW : Cesium.Color.WHITE;
-      entity.point.outlineWidth = selectedUnit?.id === unit.id ? 3 : 1;
+      // A selected unit reads larger and reveals its label.
+      entity.billboard.width = isSelected ? 44 : 34;
+      entity.billboard.height = isSelected ? 44 : 34;
+      entity.label.show = isSelected;
     }
 
     for (const [id, entity] of unitEntitiesRef.current.entries()) {
