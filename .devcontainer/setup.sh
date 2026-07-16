@@ -7,7 +7,10 @@ cd "$(dirname "$0")/.."
 
 if ! command -v psql >/dev/null 2>&1; then
   echo "[setup] PostgreSQL is not installed - installing (this takes a minute)..."
-  sudo apt-get update -qq
+  # Codespace images sometimes ship third-party apt sources with expired
+  # GPG keys (e.g. dl.yarnpkg.com); a partial index refresh is fine as
+  # long as the main Ubuntu repositories - where postgresql lives - work.
+  sudo apt-get update -qq || echo "[setup] warning: some apt repositories failed to refresh (ignored)"
   sudo apt-get install -y -qq postgresql
 fi
 
