@@ -10,14 +10,22 @@ import { unitsRouter } from './routes/units.js';
 import { attachSocketHandlers } from './sockets/index.js';
 import { startGameLoop } from './game/tick.js';
 
+// Accept a comma-separated list of origins: the dev client is reachable as
+// both http://localhost:5173 and http://127.0.0.1:5173, and locking CORS to
+// a single spelling makes fetches from the other one fail confusingly.
+const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173,http://127.0.0.1:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: process.env.CLIENT_ORIGIN ?? '*' },
+  cors: { origin: allowedOrigins },
 });
 
 app.set('io', io);
-app.use(cors({ origin: process.env.CLIENT_ORIGIN ?? '*' }));
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
