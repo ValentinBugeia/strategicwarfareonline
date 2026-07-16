@@ -18,10 +18,18 @@ echo "[setup] Starting PostgreSQL..."
 sudo service postgresql start
 
 echo "[setup] Ensuring role and database exist..."
-sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='swo'" | grep -q 1 \
-  || sudo -u postgres psql -c "CREATE ROLE swo LOGIN PASSWORD 'swo';"
-sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='swo'" | grep -q 1 \
-  || sudo -u postgres psql -c "CREATE DATABASE swo OWNER swo;"
+# Go through root (`sudo su postgres`) rather than `sudo -u postgres`:
+# some Codespace images only allow passwordless sudo to root, and
+# switching to any other user prompts for a password that doesn't exist.
+sudo su postgres -c "psql -v ON_ERROR_STOP=1" <<'SQL'
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'swo') THEN
+    CREATE ROLE swo LOGIN PASSWORD 'swo';
+  END IF;
+END $$;
+SELECT 'CREATE DATABASE swo OWNER swo'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'swo')\gexec
+SQL
 
 echo "[setup] Server dependencies + schema..."
 cd server
