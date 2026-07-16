@@ -21,6 +21,24 @@ déplaçable sur le globe en temps réel.
 - Node.js 20+
 - PostgreSQL (16 recommandé)
 
+## Démarrage rapide en GitHub Codespaces
+
+Le dépôt contient un devcontainer : à l'ouverture (et à chaque redémarrage)
+du Codespace, `.devcontainer/setup.sh` démarre PostgreSQL, crée la base,
+installe les dépendances, applique le schéma et importe les nations.
+Il ne reste qu'à lancer les deux serveurs :
+
+```bash
+# terminal 1
+cd server && npm run dev
+# terminal 2
+cd client && npm run dev
+```
+
+puis à ouvrir le port 5173 transféré (onglet « Ports » de VS Code). Si le
+Codespace existait avant ce commit, lancez une fois
+`bash .devcontainer/setup.sh` à la main.
+
 ## Mise en route
 
 ### 1. Base de données
@@ -45,10 +63,15 @@ npm run dev               # démarre l'API + Socket.io sur :4000
 
 ```bash
 cd client
-cp .env.example .env    # VITE_API_URL doit pointer vers le serveur
 npm install
 npm run dev               # démarre le client sur :5173
 ```
+
+En développement le client n'a besoin d'aucune configuration : Vite fait
+suivre `/api` et `/socket.io` vers le backend (localhost:4000), donc le
+navigateur ne parle qu'à une seule origine — ce qui fonctionne aussi à
+travers les ports transférés de Codespaces. `VITE_API_URL` ne sert qu'en
+production si l'API est hébergée sur une autre origine.
 
 Ouvrez `http://localhost:5173`. Créez un compte, cliquez sur un pays non
 revendiqué pour prendre le contrôle d'une nation, achetez de l'infanterie,

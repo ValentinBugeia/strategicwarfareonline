@@ -1,0 +1,10 @@
+{
+  "name": "Strategic Warfare Online",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "forwardPorts": [5173, 4000],
+  "portsAttributes": {
+    "5173": { "label": "Jeu (client Vite)" },
+    "4000": { "label": "API backend" }
+  },
+  "postStartCommand": "bash .devcontainer/setup.sh"
+}

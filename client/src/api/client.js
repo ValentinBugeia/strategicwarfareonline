@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+// Empty by default: requests go to the same origin as the page and the
+// Vite dev proxy (see vite.config.js) forwards them to the backend. Set
+// VITE_API_URL only when the API lives on a different origin in production.
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 export async function apiFetch(path, { method = 'GET', body, token } = {}) {
   const res = await fetch(`${API_URL}${path}`, {
