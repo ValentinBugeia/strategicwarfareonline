@@ -34,7 +34,7 @@ SQL
 echo "[setup] Server dependencies + schema..."
 cd server
 [ -f .env ] || cp .env.example .env
-[ -d node_modules ] || npm install
+npm install
 npm run migrate
 npm run seed
 cd ..
@@ -42,7 +42,7 @@ cd ..
 echo "[setup] Client dependencies..."
 cd client
 [ -f .env ] || cp .env.example .env
-[ -d node_modules ] || npm install
+npm install
 cd ..
 
 echo "[setup] Done. Start the game with:"

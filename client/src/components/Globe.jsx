@@ -1,11 +1,29 @@
 import { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { feature } from 'topojson-client';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import worldAtlas from 'world-atlas/countries-110m.json';
 import { ownerColorHsl } from '../utils/color.js';
 
-const UNCLAIMED_COLOR = Cesium.Color.fromCssColorString('rgba(120,120,120,0.35)');
+const UNCLAIMED_COLOR = Cesium.Color.fromCssColorString('rgba(170,170,170,0.30)');
 const worldGeoJson = feature(worldAtlas, worldAtlas.objects.countries);
+
+// Features without a numeric id (a few disputed territories) are also
+// excluded from the seeded nations, so they're not claimable targets.
+const countryFeatures = worldGeoJson.features.filter((f) => f.id !== undefined);
+
+// Geometric hit-testing: resolve a clicked lat/lon to the country that
+// contains it. GPU-based entity picking (scene.pick) proved unreliable
+// across graphics stacks, while this is pure math and works everywhere.
+function findCountryIsoAt(lon, lat) {
+  const point = { type: 'Point', coordinates: [lon, lat] };
+  for (const country of countryFeatures) {
+    if (booleanPointInPolygon(point, country)) {
+      return String(country.id).padStart(3, '0');
+    }
+  }
+  return null;
+}
 
 export default function Globe({ nations, units, myNationId, selectedUnit, onSelectNation, onMoveTarget }) {
   const containerRef = useRef(null);
@@ -31,8 +49,14 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
       // 1.107+: it gets silently ignored and the viewer falls back to the
       // default ion imagery, which 404s without an access token and leaves
       // a bare blue globe. `baseLayer` is the current way to set imagery.
+      // CARTO's label-free dark basemap keeps the strategic map readable:
+      // full OSM street/city detail was visual noise at this scale.
       baseLayer: new Cesium.ImageryLayer(
-        new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
+        new Cesium.UrlTemplateImageryProvider({
+          url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+          subdomains: ['a', 'b', 'c', 'd'],
+          credit: new Cesium.Credit('© OpenStreetMap contributors © CARTO'),
+        })
       ),
       terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       baseLayerPicker: false,
@@ -86,22 +110,21 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
 
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     handler.setInputAction((click) => {
-      const picked = viewer.scene.pick(click.position);
+      // pickEllipsoid is a ray/ellipsoid intersection - unlike scene.pick
+      // it needs no GPU readback, so it behaves identically everywhere.
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
+      if (!cartesian) return; // clicked past the globe's edge
+      const carto = Cesium.Cartographic.fromCartesian(cartesian);
+      const lat = Cesium.Math.toDegrees(carto.latitude);
+      const lon = Cesium.Math.toDegrees(carto.longitude);
 
       if (selectedUnitRef.current) {
-        const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
-        if (cartesian) {
-          const carto = Cesium.Cartographic.fromCartesian(cartesian);
-          onMoveTargetRef.current?.(
-            Cesium.Math.toDegrees(carto.latitude),
-            Cesium.Math.toDegrees(carto.longitude)
-          );
-        }
+        onMoveTargetRef.current?.(lat, lon);
         return;
       }
 
-      if (Cesium.defined(picked) && picked.id?.polygon) {
-        const isoCode = String(picked.id.id).padStart(3, '0');
+      const isoCode = findCountryIsoAt(lon, lat);
+      if (isoCode) {
         onSelectNationRef.current?.(isoCode);
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
