@@ -1,5 +1,6 @@
 import { UNIT_TYPES } from '../unitTypes.js';
 import { unitIconDataUri, OWN_UNIT_COLOR } from '../utils/unitIcons.js';
+import { formatEta } from '../utils/format.js';
 
 function UnitIcon({ type, size = 20 }) {
   return (
@@ -75,7 +76,11 @@ export default function Hud({
                 <UnitIcon type={unit.type} />
                 <span>
                   {UNIT_TYPES[unit.type]?.label ?? unit.type} #{unit.id}
-                  {unit.destLat ? ' — en mouvement' : ''}
+                  {unit.destLat != null && (
+                    <span className="unit-eta">
+                      ⏱ arrive dans {formatEta(unit.etaSeconds) ?? '…'}
+                    </span>
+                  )}
                 </span>
               </button>
             </li>

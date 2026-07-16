@@ -5,6 +5,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import worldAtlas from 'world-atlas/countries-110m.json';
 import { ownerColorHsl } from '../utils/color.js';
 import { unitIconDataUri, OWN_UNIT_COLOR, ENEMY_UNIT_COLOR } from '../utils/unitIcons.js';
+import { formatEta } from '../utils/format.js';
 
 const UNCLAIMED_COLOR = Cesium.Color.fromCssColorString('rgba(170,170,170,0.30)');
 const worldGeoJson = feature(worldAtlas, worldAtlas.objects.countries);
@@ -31,6 +32,8 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
   const viewerRef = useRef(null);
   const countryEntitiesRef = useRef(new Map()); // isoCode -> entity
   const unitEntitiesRef = useRef(new Map()); // unitId -> entity
+  const unitPathEntitiesRef = useRef(new Map()); // unitId -> movement vector polyline
+  const unitDestEntitiesRef = useRef(new Map()); // unitId -> destination marker + ETA
   const onSelectNationRef = useRef(onSelectNation);
   const onMoveTargetRef = useRef(onMoveTarget);
   const selectedUnitRef = useRef(selectedUnit);
@@ -203,17 +206,122 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
       entity.billboard.width = isSelected ? 44 : 34;
       entity.billboard.height = isSelected ? 44 : 34;
       entity.label.show = isSelected;
+
+      // Movement vector + destination marker + ETA, for any unit en route.
+      const cesiumColor = Cesium.Color.fromCssColorString(iconColor);
+      if (unit.destLat != null && unit.destLon != null) {
+        syncPathEntity(viewer, unitPathEntitiesRef.current, unit, cesiumColor);
+        syncDestEntity(viewer, unitDestEntitiesRef.current, unit, cesiumColor);
+      } else {
+        removePath(viewer, unitPathEntitiesRef.current, unit.id);
+        removeEntity(viewer, unitDestEntitiesRef.current, unit.id);
+      }
     }
 
     for (const [id, entity] of unitEntitiesRef.current.entries()) {
       if (!seen.has(id)) {
         viewer.entities.remove(entity);
         unitEntitiesRef.current.delete(id);
+        removePath(viewer, unitPathEntitiesRef.current, id);
+        removeEntity(viewer, unitDestEntitiesRef.current, id);
       }
     }
   }, [units, myNationId, selectedUnit]);
 
   return <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />;
+}
+
+const PATH_DOTS = 14;
+
+// Draws/updates the movement vector as a trail of dots from the unit to its
+// destination. Dots (like billboards/points) render reliably on every
+// graphics stack, whereas polyline arrow/dash materials silently fail on
+// some software GPUs; a dotted trail also naturally reads as a route. The
+// trail shortens as the unit advances toward its target.
+function syncPathEntity(viewer, store, unit, color) {
+  const geo = new Cesium.EllipsoidGeodesic(
+    Cesium.Cartographic.fromDegrees(unit.lon, unit.lat),
+    Cesium.Cartographic.fromDegrees(unit.destLon, unit.destLat)
+  );
+  const positions = [];
+  for (let i = 1; i < PATH_DOTS; i++) {
+    const c = geo.interpolateUsingFraction(i / PATH_DOTS);
+    positions.push(Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, 5000));
+  }
+
+  let dots = store.get(unit.id);
+  if (!dots) {
+    dots = [];
+    store.set(unit.id, dots);
+  }
+  while (dots.length < positions.length) {
+    dots.push(
+      viewer.entities.add({
+        point: {
+          pixelSize: 4,
+          color,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      })
+    );
+  }
+  while (dots.length > positions.length) {
+    viewer.entities.remove(dots.pop());
+  }
+  positions.forEach((p, i) => {
+    dots[i].position = p;
+    dots[i].point.color = color;
+  });
+}
+
+function removePath(viewer, store, id) {
+  const dots = store.get(id);
+  if (dots) {
+    for (const dot of dots) viewer.entities.remove(dot);
+    store.delete(id);
+  }
+}
+
+// Draws/updates the destination flag and the "arrive dans X" ETA label.
+function syncDestEntity(viewer, store, unit, color) {
+  const position = Cesium.Cartesian3.fromDegrees(unit.destLon, unit.destLat);
+  const etaText = formatEta(unit.etaSeconds);
+  let entity = store.get(unit.id);
+  if (!entity) {
+    entity = viewer.entities.add({
+      position,
+      point: {
+        pixelSize: 9,
+        color: color.withAlpha(0.9),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      label: {
+        text: etaText ? `⏱ ${etaText}` : '',
+        font: '600 12px system-ui, sans-serif',
+        pixelOffset: new Cesium.Cartesian2(0, 16),
+        fillColor: Cesium.Color.WHITE,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+    });
+    store.set(unit.id, entity);
+  } else {
+    entity.position = position;
+    entity.point.color = color.withAlpha(0.9);
+    entity.label.text = etaText ? `⏱ ${etaText}` : '';
+  }
+}
+
+function removeEntity(viewer, store, id) {
+  const entity = store.get(id);
+  if (entity) {
+    viewer.entities.remove(entity);
+    store.delete(id);
+  }
 }
 
 function applyNationColors(entitiesByIso, nations, myNationId) {

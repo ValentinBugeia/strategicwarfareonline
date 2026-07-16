@@ -3,6 +3,7 @@ import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { getUnitType } from '../game/unitTypes.js';
+import { withEta } from '../game/eta.js';
 
 export const unitsRouter = Router();
 
@@ -22,7 +23,7 @@ unitsRouter.get(
               dest_lon AS "destLon", speed_kmh AS "speedKmh", hp
        FROM units`
     );
-    res.json(rows);
+    res.json(rows.map(withEta));
   })
 );
 
@@ -104,6 +105,6 @@ unitsRouter.post(
       return res.status(404).json({ error: 'Unit not found or not yours' });
     }
 
-    res.json(rows[0]);
+    res.json(withEta(rows[0]));
   })
 );

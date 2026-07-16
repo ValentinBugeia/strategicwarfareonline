@@ -1,7 +1,7 @@
 import * as turf from '@turf/turf';
 import { pool } from '../db/pool.js';
-
-const TICK_MS = 3000;
+import { TICK_MS, stepKmPerTick } from './config.js';
+import { withEta } from './eta.js';
 
 async function runIncomeTick() {
   const { rows } = await pool.query(
@@ -13,8 +13,6 @@ async function runIncomeTick() {
 }
 
 async function runMovementTick() {
-  const hoursPerTick = TICK_MS / 1000 / 3600;
-
   const { rows: moving } = await pool.query(
     `SELECT id, lat, lon, dest_lat AS "destLat", dest_lon AS "destLon", speed_kmh AS "speedKmh"
      FROM units WHERE dest_lat IS NOT NULL AND dest_lon IS NOT NULL`
@@ -25,7 +23,7 @@ async function runMovementTick() {
     const from = [unit.lon, unit.lat];
     const to = [unit.destLon, unit.destLat];
     const remainingKm = turf.distance(from, to, { units: 'kilometers' });
-    const maxStepKm = unit.speedKmh * hoursPerTick;
+    const maxStepKm = stepKmPerTick(unit.speedKmh);
 
     if (remainingKm <= maxStepKm) {
       updates.push({ id: unit.id, lat: unit.destLat, lon: unit.destLon, arrived: true });
@@ -72,7 +70,7 @@ export function startGameLoop(io) {
                   dest_lon AS "destLon", speed_kmh AS "speedKmh", hp
            FROM units`
         );
-        io.emit('units:update', units);
+        io.emit('units:update', units.map(withEta));
       }
     } catch (err) {
       console.error('Game tick failed:', err);

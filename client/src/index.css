@@ -179,6 +179,13 @@ html, body, #root {
   display: block;
 }
 
+.unit-eta {
+  display: block;
+  font-size: 0.72rem;
+  color: #facc15;
+  margin-top: 2px;
+}
+
 .nation-panel {
   position: absolute;
   bottom: 1rem;
