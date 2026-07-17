@@ -27,13 +27,32 @@ export const BUILDINGS = {
     cost: { money: 1000, materials: 150 },
     buildGameHours: 5,
     production: { materials: 10 },
+    unlocks: ['tank'],
   },
   barracks: {
     label: 'Caserne',
     cost: { money: 700, materials: 150 },
     buildGameHours: 3,
     production: { manpower: 8 },
-    unlocks: ['infantry'],
+    unlocks: ['infantry', 'commando'],
+  },
+  airbase: {
+    label: 'Base aérienne',
+    cost: { money: 1800, materials: 300 },
+    buildGameHours: 5,
+    unlocks: ['aircraft', 'helicopter', 'drone'],
+  },
+  shipyard: {
+    label: 'Chantier naval',
+    cost: { money: 2000, materials: 350 },
+    buildGameHours: 6,
+    unlocks: ['warship'],
+  },
+  intelligence_agency: {
+    label: 'Agence de renseignement',
+    cost: { money: 1500, materials: 100 },
+    buildGameHours: 4,
+    unlocks: ['spy'],
   },
   bank: {
     label: 'Centre financier',

@@ -5,7 +5,9 @@ import {
   RESOURCE_META,
   RESOURCE_ORDER,
   BUILDINGS,
-  UNIT_COSTS,
+  UNITS,
+  UNIT_ORDER,
+  unitLabel,
   formatCost,
   canAfford,
 } from '../economy.js';
@@ -109,7 +111,8 @@ export default function Hud({ myNation, myUnits, selectedUnit, onBuyUnit, onBuil
       {/* Unit production */}
       <div className="section">
         <h3>Production d'unités</h3>
-        {Object.entries(UNIT_COSTS).map(([type, spec]) => {
+        {UNIT_ORDER.map((type) => {
+          const spec = UNITS[type];
           const isUnlocked = unlocked.includes(type);
           const affordable = canAfford(myNation, spec.cost);
           return (
@@ -118,13 +121,13 @@ export default function Hud({ myNation, myUnits, selectedUnit, onBuyUnit, onBuil
               className="buy-button"
               onClick={() => onBuyUnit(type)}
               disabled={!isUnlocked || !affordable}
-              title={isUnlocked ? '' : `Nécessite : ${BUILDINGS[spec.requiresBuilding]?.label}`}
+              title={isUnlocked ? spec.stats : `Nécessite : ${BUILDINGS[spec.requiresBuilding]?.label}`}
             >
               <UnitIcon type={type} />
               <span className="build-text">
-                Infanterie
+                {spec.label}
                 <span className="build-cost">
-                  {isUnlocked ? formatCost(spec.cost) : `🔒 ${BUILDINGS[spec.requiresBuilding]?.label} requise`}
+                  {isUnlocked ? formatCost(spec.cost) : `🔒 ${BUILDINGS[spec.requiresBuilding]?.label}`}
                 </span>
               </span>
             </button>
@@ -135,7 +138,7 @@ export default function Hud({ myNation, myUnits, selectedUnit, onBuyUnit, onBuil
             {queue.map((q) => (
               <li key={q.id}>
                 <span>
-                  <UnitIcon type={q.type} size={16} /> {UNIT_COSTS[q.type] ? 'Infanterie' : q.type}
+                  <UnitIcon type={q.type} size={16} /> {unitLabel(q.type)}
                 </span>
                 <span className="unit-eta">🏭 {formatEta(secondsUntil(q.readyAt, now)) ?? '…'}</span>
               </li>
@@ -157,7 +160,8 @@ export default function Hud({ myNation, myUnits, selectedUnit, onBuyUnit, onBuil
               >
                 <UnitIcon type={unit.type} />
                 <span>
-                  Infanterie #{unit.id}
+                  {unitLabel(unit.type)} #{unit.id}
+                  {unit.hp != null && <span className="unit-hp">❤️ {unit.hp} PV</span>}
                   {unit.destLat != null && (
                     <span className="unit-eta">⏱ arrive dans {formatEta(unit.etaSeconds) ?? '…'}</span>
                   )}

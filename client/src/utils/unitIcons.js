@@ -27,6 +27,18 @@ const GLYPHS = {
   spy: `<g fill='none' stroke='white' stroke-width='3'><path d='M17 32 Q32 20 47 32 Q32 44 17 32 Z'/></g><circle cx='32' cy='32' r='4.5' fill='white'/>`,
 };
 
+// Maps server unit-type names to the glyph that depicts them.
+const TYPE_GLYPH = {
+  infantry: 'infantry',
+  commando: 'commando',
+  tank: 'armor',
+  aircraft: 'plane',
+  helicopter: 'helicopter',
+  drone: 'drone',
+  warship: 'ship',
+  spy: 'spy',
+};
+
 const cache = new Map();
 
 // colorHex tints the badge; the glyph stays white for contrast on any color.
@@ -35,7 +47,7 @@ export function unitIconDataUri(type, colorHex) {
   const cached = cache.get(key);
   if (cached) return cached;
 
-  const glyph = GLYPHS[type] ?? GLYPHS.infantry;
+  const glyph = GLYPHS[TYPE_GLYPH[type] ?? type] ?? GLYPHS.infantry;
   const svg =
     `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>` +
     `<rect x='9' y='9' width='46' height='46' rx='11' fill='${colorHex}' stroke='white' stroke-width='3'/>` +

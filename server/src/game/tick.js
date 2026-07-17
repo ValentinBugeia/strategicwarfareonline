@@ -2,6 +2,7 @@ import * as turf from '@turf/turf';
 import { pool } from '../db/pool.js';
 import { TICK_MS, stepKmPerTick } from './config.js';
 import { productionRates } from './economy.js';
+import { resolveCombat } from './combat.js';
 import { withEta } from './eta.js';
 
 // Grants each owned nation its per-tick production (base + active building
@@ -98,6 +99,24 @@ async function runMovementTick() {
   return updates.length > 0;
 }
 
+// Resolves one round of combat between deployed enemy units and writes the
+// results. Returns true if anything changed (so the map is rebroadcast).
+async function runCombatTick() {
+  const { rows: units } = await pool.query(
+    `SELECT id, nation_id AS "nationId", type, lat, lon, hp FROM units WHERE status = 'active'`
+  );
+  const { damaged, destroyed } = resolveCombat(units);
+  if (damaged.length === 0 && destroyed.length === 0) return false;
+
+  for (const u of damaged) {
+    await pool.query('UPDATE units SET hp = $1 WHERE id = $2', [u.hp, u.id]);
+  }
+  if (destroyed.length > 0) {
+    await pool.query('DELETE FROM units WHERE id = ANY($1)', [destroyed.map((u) => u.id)]);
+  }
+  return true;
+}
+
 async function broadcastActiveUnits(io) {
   const { rows: units } = await pool.query(
     `SELECT id, nation_id AS "nationId", type, lat, lon, dest_lat AS "destLat",
@@ -124,7 +143,8 @@ export function startGameLoop(io) {
       }
 
       const anyMoved = await runMovementTick();
-      if (anyMoved || unitDeployed) {
+      const anyCombat = await runCombatTick();
+      if (anyMoved || unitDeployed || anyCombat) {
         await broadcastActiveUnits(io);
       }
     } catch (err) {

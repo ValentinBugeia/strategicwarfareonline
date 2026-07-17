@@ -196,6 +196,13 @@ html, body, #root {
   margin-top: 2px;
 }
 
+.unit-hp {
+  display: block;
+  font-size: 0.72rem;
+  color: #f87171;
+  margin-top: 2px;
+}
+
 .hud .build-button,
 .hud .buy-button {
   display: flex;
