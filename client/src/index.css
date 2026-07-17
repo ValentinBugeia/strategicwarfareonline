@@ -281,3 +281,143 @@ html, body, #root {
   color: white;
   cursor: pointer;
 }
+
+/* Scoreboard (top-right) */
+.scoreboard {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 200px;
+  background: rgba(19, 27, 46, 0.92);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  z-index: 10;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.scoreboard h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b93a8;
+  margin: 0 0 0.5rem;
+}
+
+.scoreboard ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.scoreboard li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  padding: 2px 0;
+}
+
+.scoreboard li.me {
+  color: #22d3ee;
+  font-weight: 600;
+}
+
+.scoreboard .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.scoreboard .you {
+  color: #8b93a8;
+  font-size: 0.72rem;
+}
+
+/* Intel button + panel */
+.intel-open {
+  background: #3b1d5c !important;
+  border-color: #6b3fa0 !important;
+  text-align: center !important;
+  font-weight: 600;
+}
+
+.intel-panel {
+  position: absolute;
+  top: 1rem;
+  right: 220px;
+  width: 300px;
+  background: rgba(24, 16, 38, 0.96);
+  border: 1px solid #6b3fa0;
+  border-radius: 10px;
+  padding: 1rem;
+  z-index: 15;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.panel-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.intel-report {
+  border-top: 1px solid #3a2a55;
+  padding: 0.6rem 0;
+}
+
+.intel-resources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  margin: 0.35rem 0;
+}
+
+.intel-resources .resource-rate {
+  color: #4ade80;
+  font-size: 0.7rem;
+}
+
+.intel-units {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.intel-unit {
+  font-size: 0.75rem;
+  background: #2a1f42;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+/* Combat log (bottom-center toasts) */
+.combat-log {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  z-index: 20;
+  align-items: center;
+}
+
+.combat-toast {
+  background: rgba(120, 20, 20, 0.92);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}

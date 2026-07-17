@@ -104,11 +104,23 @@ pour la déplacer (un vecteur et une heure d'arrivée s'affichent).
   catalogue (`server/src/game/unitTypes.js`) est prêt pour navires, avions,
   hélicoptères, drones, véhicules et agents secrets.
 
+- **Combat** : à chaque tick, toute unité armée inflige ses dégâts à l'unité
+  ennemie (d'une autre nation) la plus proche à portée ; destruction à 0 PV.
+  Les PV s'affichent dans le HUD et via une barre de vie sur la carte, et le
+  joueur reçoit une notification quand il perd des unités.
+- **Espionnage** : un agent secret placé dans les frontières d'une nation
+  rivale révèle son économie (stocks + production) et l'inventaire de ses
+  forces via le panneau *Renseignement* (`GET /api/intel`).
+- **Tableau des puissances** : liste en temps réel des nations contrôlées et
+  de leurs joueurs (le monde est partagé par tous).
+
 ## Prochaines étapes suggérées
 
-- Nouveaux types d'unités (navale, aérienne, blindée) avec leurs bâtiments
-  (chantier naval, base aérienne) et déplacement contraint (terre/mer/air).
-- Combat entre unités quand elles se rencontrent.
+- Contraintes de déplacement terre/mer/air (avec apparition côtière des
+  navires pour les pays maritimes).
+- Conquête de territoire (capturer des pays par la force).
+- Sabotage / vol de ressources par les agents secrets.
+- Diplomatie : alliances, déclarations de guerre, marché de ressources.
 - Agents secrets / espionnage (révéler l'économie ou les mouvements d'une
   nation rivale, sabotage).
 - Brouillard de guerre partiel (ne voir que les unités proches de son

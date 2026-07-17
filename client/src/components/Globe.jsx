@@ -4,8 +4,9 @@ import { feature } from 'topojson-client';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import worldAtlas from 'world-atlas/countries-110m.json';
 import { ownerColorHsl } from '../utils/color.js';
-import { unitIconDataUri, OWN_UNIT_COLOR, ENEMY_UNIT_COLOR } from '../utils/unitIcons.js';
+import { unitIconDataUri, hpBarDataUri, OWN_UNIT_COLOR, ENEMY_UNIT_COLOR } from '../utils/unitIcons.js';
 import { formatEta } from '../utils/format.js';
+import { unitMaxHp } from '../economy.js';
 
 const UNCLAIMED_COLOR = Cesium.Color.fromCssColorString('rgba(170,170,170,0.30)');
 const worldGeoJson = feature(worldAtlas, worldAtlas.objects.countries);
@@ -34,6 +35,7 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
   const unitEntitiesRef = useRef(new Map()); // unitId -> entity
   const unitPathEntitiesRef = useRef(new Map()); // unitId -> movement vector polyline
   const unitDestEntitiesRef = useRef(new Map()); // unitId -> destination marker + ETA
+  const unitHpEntitiesRef = useRef(new Map()); // unitId -> health bar billboard
   const onSelectNationRef = useRef(onSelectNation);
   const onMoveTargetRef = useRef(onMoveTarget);
   const selectedUnitRef = useRef(selectedUnit);
@@ -207,6 +209,14 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
       entity.billboard.height = isSelected ? 44 : 34;
       entity.label.show = isSelected;
 
+      // Health bar above the icon, shown only once a unit has taken damage.
+      const maxHp = unitMaxHp(unit.type);
+      if (unit.hp != null && unit.hp < maxHp) {
+        syncHpBar(viewer, unitHpEntitiesRef.current, unit, unit.hp / maxHp);
+      } else {
+        removeEntity(viewer, unitHpEntitiesRef.current, unit.id);
+      }
+
       // Movement vector + destination marker + ETA, for any unit en route.
       const cesiumColor = Cesium.Color.fromCssColorString(iconColor);
       if (unit.destLat != null && unit.destLon != null) {
@@ -224,6 +234,7 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
         unitEntitiesRef.current.delete(id);
         removePath(viewer, unitPathEntitiesRef.current, id);
         removeEntity(viewer, unitDestEntitiesRef.current, id);
+        removeEntity(viewer, unitHpEntitiesRef.current, id);
       }
     }
   }, [units, myNationId, selectedUnit]);
@@ -272,6 +283,28 @@ function syncPathEntity(viewer, store, unit, color) {
     dots[i].position = p;
     dots[i].point.color = color;
   });
+}
+
+// Draws/updates a small health bar billboard just above a unit's icon.
+function syncHpBar(viewer, store, unit, fraction) {
+  const position = Cesium.Cartesian3.fromDegrees(unit.lon, unit.lat);
+  let entity = store.get(unit.id);
+  if (!entity) {
+    entity = viewer.entities.add({
+      position,
+      billboard: {
+        image: hpBarDataUri(fraction),
+        width: 34,
+        height: 7,
+        pixelOffset: new Cesium.Cartesian2(0, -22),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+    });
+    store.set(unit.id, entity);
+  } else {
+    entity.position = position;
+    entity.billboard.image = hpBarDataUri(fraction);
+  }
 }
 
 function removePath(viewer, store, id) {

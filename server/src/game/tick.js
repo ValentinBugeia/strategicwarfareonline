@@ -100,13 +100,14 @@ async function runMovementTick() {
 }
 
 // Resolves one round of combat between deployed enemy units and writes the
-// results. Returns true if anything changed (so the map is rebroadcast).
+// results. Returns { changed, destroyed } where destroyed carries each lost
+// unit's type and owning nation so the loop can send combat reports.
 async function runCombatTick() {
   const { rows: units } = await pool.query(
     `SELECT id, nation_id AS "nationId", type, lat, lon, hp FROM units WHERE status = 'active'`
   );
   const { damaged, destroyed } = resolveCombat(units);
-  if (damaged.length === 0 && destroyed.length === 0) return false;
+  if (damaged.length === 0 && destroyed.length === 0) return { changed: false, destroyed: [] };
 
   for (const u of damaged) {
     await pool.query('UPDATE units SET hp = $1 WHERE id = $2', [u.hp, u.id]);
@@ -114,7 +115,25 @@ async function runCombatTick() {
   if (destroyed.length > 0) {
     await pool.query('DELETE FROM units WHERE id = ANY($1)', [destroyed.map((u) => u.id)]);
   }
-  return true;
+  return { changed: true, destroyed };
+}
+
+// Tells each affected player how many of their units were lost this tick.
+async function sendCombatReports(io, destroyed) {
+  if (destroyed.length === 0) return;
+  const lossesByNation = new Map();
+  for (const u of destroyed) {
+    lossesByNation.set(u.nationId, (lossesByNation.get(u.nationId) ?? 0) + 1);
+  }
+  const { rows } = await pool.query(
+    'SELECT id, owner_user_id AS "ownerId" FROM nations WHERE id = ANY($1) AND owner_user_id IS NOT NULL',
+    [[...lossesByNation.keys()]]
+  );
+  for (const nation of rows) {
+    io.to(`user:${nation.ownerId}`).emit('combat:event', {
+      lost: lossesByNation.get(nation.id),
+    });
+  }
 }
 
 async function broadcastActiveUnits(io) {
@@ -143,10 +162,11 @@ export function startGameLoop(io) {
       }
 
       const anyMoved = await runMovementTick();
-      const anyCombat = await runCombatTick();
-      if (anyMoved || unitDeployed || anyCombat) {
+      const combat = await runCombatTick();
+      if (anyMoved || unitDeployed || combat.changed) {
         await broadcastActiveUnits(io);
       }
+      await sendCombatReports(io, combat.destroyed);
     } catch (err) {
       console.error('Game tick failed:', err);
     }

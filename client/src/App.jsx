@@ -3,6 +3,9 @@ import Globe from './components/Globe.jsx';
 import LoginForm from './components/LoginForm.jsx';
 import Hud from './components/Hud.jsx';
 import NationPanel from './components/NationPanel.jsx';
+import IntelPanel from './components/IntelPanel.jsx';
+import Scoreboard from './components/Scoreboard.jsx';
+import CombatLog from './components/CombatLog.jsx';
 import { apiFetch } from './api/client.js';
 import { createSocket } from './api/socket.js';
 
@@ -13,6 +16,8 @@ export default function App() {
   const [units, setUnits] = useState([]);
   const [selectedIso, setSelectedIso] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
+  const [intelReports, setIntelReports] = useState(null); // null = panel closed
+  const [combatEvents, setCombatEvents] = useState([]);
 
   const refreshNations = useCallback(() => {
     apiFetch('/api/nations').then(setNations).catch(console.error);
@@ -62,6 +67,13 @@ export default function App() {
     socket.on('nation:update', (patch) => {
       setMyNation((prev) => (prev ? { ...prev, ...patch } : prev));
     });
+    // Combat losses: surface a toast (auto-dismissed after a few seconds).
+    socket.on('combat:event', ({ lost }) => {
+      const id = Date.now() + Math.random();
+      const text = `Vous avez perdu ${lost} unité${lost > 1 ? 's' : ''} au combat`;
+      setCombatEvents((prev) => [...prev.slice(-4), { id, text }]);
+      setTimeout(() => setCombatEvents((prev) => prev.filter((e) => e.id !== id)), 6000);
+    });
     return () => socket.disconnect();
   }, [token, refreshNations, refreshUnits, refreshMyNation]);
 
@@ -101,6 +113,15 @@ export default function App() {
     try {
       await apiFetch('/api/buildings', { method: 'POST', token, body: { type } });
       refreshMyNation(token);
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function handleOpenIntel() {
+    try {
+      const reports = await apiFetch('/api/intel', { token });
+      setIntelReports(reports);
     } catch (err) {
       alert(err.message);
     }
@@ -156,9 +177,18 @@ export default function App() {
           onBuyUnit={handleBuyUnit}
           onBuild={handleBuild}
           onSelectUnit={setSelectedUnit}
+          onOpenIntel={handleOpenIntel}
           onLogout={handleLogout}
         />
       )}
+
+      {token && <Scoreboard nations={nations} myNationId={myNation?.id ?? null} />}
+
+      {intelReports !== null && (
+        <IntelPanel reports={intelReports} onClose={() => setIntelReports(null)} />
+      )}
+
+      <CombatLog events={combatEvents} />
 
       <NationPanel
         nation={selectedNation}

@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth.js';
 import { nationsRouter } from './routes/nations.js';
 import { unitsRouter } from './routes/units.js';
 import { buildingsRouter } from './routes/buildings.js';
+import { intelRouter } from './routes/intel.js';
 import { attachSocketHandlers } from './sockets/index.js';
 import { startGameLoop } from './game/tick.js';
 
@@ -35,6 +36,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/nations', nationsRouter);
 app.use('/api/units', unitsRouter);
 app.use('/api/buildings', buildingsRouter);
+app.use('/api/intel', intelRouter);
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {

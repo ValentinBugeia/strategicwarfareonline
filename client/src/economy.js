@@ -21,17 +21,21 @@ export const BUILDINGS = {
   bank: { label: 'Centre financier', icon: '🏦', cost: { money: 1200 }, effect: '+40 argent/tick' },
 };
 
-// Roster: label, cost, requiredBuilding and combat stats for the HUD tooltip.
+// Roster: label, cost, requiredBuilding, max hp and combat stats.
 export const UNITS = {
-  infantry: { label: 'Infanterie', cost: { money: 500, materials: 100, manpower: 100 }, requiresBuilding: 'barracks', stats: 'PV 100 · ATQ 10' },
-  commando: { label: 'Commando', cost: { money: 800, materials: 80, manpower: 120 }, requiresBuilding: 'barracks', stats: 'PV 90 · ATQ 20' },
-  tank: { label: 'Char', cost: { money: 1200, materials: 300, oil: 100 }, requiresBuilding: 'arms_factory', stats: 'PV 220 · ATQ 26' },
-  aircraft: { label: 'Avion de chasse', cost: { money: 2000, materials: 250, oil: 200 }, requiresBuilding: 'airbase', stats: 'PV 120 · ATQ 34' },
-  helicopter: { label: 'Hélicoptère', cost: { money: 1500, materials: 200, oil: 150 }, requiresBuilding: 'airbase', stats: 'PV 150 · ATQ 24' },
-  drone: { label: 'Drone', cost: { money: 900, materials: 150, oil: 80 }, requiresBuilding: 'airbase', stats: 'PV 70 · ATQ 18' },
-  warship: { label: 'Navire de guerre', cost: { money: 2500, materials: 400, oil: 200 }, requiresBuilding: 'shipyard', stats: 'PV 320 · ATQ 30' },
-  spy: { label: 'Agent secret', cost: { money: 1000, manpower: 50 }, requiresBuilding: 'intelligence_agency', stats: 'PV 40 · espionnage' },
+  infantry: { label: 'Infanterie', cost: { money: 500, materials: 100, manpower: 100 }, requiresBuilding: 'barracks', maxHp: 100, stats: 'PV 100 · ATQ 10' },
+  commando: { label: 'Commando', cost: { money: 800, materials: 80, manpower: 120 }, requiresBuilding: 'barracks', maxHp: 90, stats: 'PV 90 · ATQ 20' },
+  tank: { label: 'Char', cost: { money: 1200, materials: 300, oil: 100 }, requiresBuilding: 'arms_factory', maxHp: 220, stats: 'PV 220 · ATQ 26' },
+  aircraft: { label: 'Avion de chasse', cost: { money: 2000, materials: 250, oil: 200 }, requiresBuilding: 'airbase', maxHp: 120, stats: 'PV 120 · ATQ 34' },
+  helicopter: { label: 'Hélicoptère', cost: { money: 1500, materials: 200, oil: 150 }, requiresBuilding: 'airbase', maxHp: 150, stats: 'PV 150 · ATQ 24' },
+  drone: { label: 'Drone', cost: { money: 900, materials: 150, oil: 80 }, requiresBuilding: 'airbase', maxHp: 70, stats: 'PV 70 · ATQ 18' },
+  warship: { label: 'Navire de guerre', cost: { money: 2500, materials: 400, oil: 200 }, requiresBuilding: 'shipyard', maxHp: 320, stats: 'PV 320 · ATQ 30' },
+  spy: { label: 'Agent secret', cost: { money: 1000, manpower: 50 }, requiresBuilding: 'intelligence_agency', maxHp: 40, stats: 'PV 40 · espionnage' },
 };
+
+export function unitMaxHp(type) {
+  return UNITS[type]?.maxHp ?? 100;
+}
 
 // Display order in the production panel.
 export const UNIT_ORDER = ['infantry', 'commando', 'tank', 'aircraft', 'helicopter', 'drone', 'warship', 'spy'];

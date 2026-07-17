@@ -23,7 +23,7 @@ function secondsUntil(iso, now) {
   return Math.max(0, Math.round((new Date(iso).getTime() - now) / 1000));
 }
 
-export default function Hud({ myNation, myUnits, selectedUnit, onBuyUnit, onBuild, onSelectUnit, onLogout }) {
+export default function Hud({ myNation, myUnits, selectedUnit, onBuyUnit, onBuild, onSelectUnit, onOpenIntel, onLogout }) {
   // Local clock so construction / production ETAs count down every second
   // between server updates.
   const [now, setNow] = useState(Date.now());
@@ -145,6 +145,13 @@ export default function Hud({ myNation, myUnits, selectedUnit, onBuyUnit, onBuil
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Espionage */}
+      <div className="section">
+        <button className="intel-open" onClick={onOpenIntel}>
+          🕵️ Renseignement
+        </button>
       </div>
 
       {/* Deployed units */}

@@ -62,3 +62,27 @@ export function unitIconDataUri(type, colorHex) {
 // same values can tint both the SVG badge and any HUD chip.
 export const OWN_UNIT_COLOR = '#22d3ee';
 export const ENEMY_UNIT_COLOR = '#f43f5e';
+
+const hpCache = new Map();
+
+// A small horizontal health bar (green→amber→red by fraction) as an SVG data
+// URI, bucketed to 5% steps so the cache stays small. Rendered as a billboard
+// above damaged units.
+export function hpBarDataUri(fraction) {
+  const f = Math.max(0, Math.min(1, fraction));
+  const bucket = Math.round(f * 20) / 20;
+  const cached = hpCache.get(bucket);
+  if (cached) return cached;
+
+  const color = bucket > 0.5 ? '#4ade80' : bucket > 0.25 ? '#facc15' : '#f43f5e';
+  const w = 40;
+  const fillW = Math.round(w * bucket);
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='8' viewBox='0 0 ${w} 8'>` +
+    `<rect x='0' y='0' width='${w}' height='8' rx='2' fill='black' fill-opacity='0.55'/>` +
+    `<rect x='1' y='1' width='${Math.max(0, fillW - 2)}' height='6' rx='1' fill='${color}'/>` +
+    `</svg>`;
+  const uri = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  hpCache.set(bucket, uri);
+  return uri;
+}
