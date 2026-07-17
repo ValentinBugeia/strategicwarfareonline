@@ -53,11 +53,17 @@ export default function App() {
     socket.on('nations:changed', refreshNations);
     socket.on('units:changed', refreshUnits);
     socket.on('units:update', setUnits);
+    // A building/unit finished, or a purchase happened: re-pull the full
+    // economy snapshot (buildings, queue, unlocks) and the live map units.
+    socket.on('economy:changed', () => {
+      refreshMyNation(token);
+      refreshUnits();
+    });
     socket.on('nation:update', (patch) => {
       setMyNation((prev) => (prev ? { ...prev, ...patch } : prev));
     });
     return () => socket.disconnect();
-  }, [token, refreshNations, refreshUnits]);
+  }, [token, refreshNations, refreshUnits, refreshMyNation]);
 
   function handleAuth(newToken, _user) {
     localStorage.setItem('swo_token', newToken);
@@ -73,9 +79,9 @@ export default function App() {
 
   async function handleClaim(isoCode) {
     try {
-      const nation = await apiFetch(`/api/nations/${isoCode}/claim`, { method: 'POST', token });
-      setMyNation(nation);
+      await apiFetch(`/api/nations/${isoCode}/claim`, { method: 'POST', token });
       setSelectedIso(null);
+      refreshMyNation(token); // full economy snapshot, not just the claim row
       refreshNations();
     } catch (err) {
       alert(err.message);
@@ -86,7 +92,15 @@ export default function App() {
     try {
       await apiFetch('/api/units', { method: 'POST', token, body: { type } });
       refreshMyNation(token);
-      refreshUnits();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function handleBuild(type) {
+    try {
+      await apiFetch('/api/buildings', { method: 'POST', token, body: { type } });
+      refreshMyNation(token);
     } catch (err) {
       alert(err.message);
     }
@@ -140,6 +154,7 @@ export default function App() {
           myUnits={myUnits}
           selectedUnit={selectedUnit}
           onBuyUnit={handleBuyUnit}
+          onBuild={handleBuild}
           onSelectUnit={setSelectedUnit}
           onLogout={handleLogout}
         />

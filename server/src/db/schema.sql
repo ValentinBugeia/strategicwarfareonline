@@ -42,3 +42,31 @@ CREATE TABLE IF NOT EXISTS units (
 );
 
 CREATE INDEX IF NOT EXISTS idx_units_nation ON units(nation_id);
+
+-- === Economy (Supremacy-1914-inspired, modern setting) ===
+
+-- Nations hold four stockpiles. money already exists; add the rest. Starting
+-- amounts give a new player enough to construct their first buildings.
+ALTER TABLE nations ADD COLUMN IF NOT EXISTS oil       NUMERIC NOT NULL DEFAULT 500;
+ALTER TABLE nations ADD COLUMN IF NOT EXISTS materials NUMERIC NOT NULL DEFAULT 500;
+ALTER TABLE nations ADD COLUMN IF NOT EXISTS manpower  NUMERIC NOT NULL DEFAULT 500;
+
+-- Buildings are constructed over (game-)time and, once active, raise resource
+-- production and/or unlock unit types. Multiple of a type may be built,
+-- stacking their bonuses.
+CREATE TABLE IF NOT EXISTS buildings (
+  id           SERIAL PRIMARY KEY,
+  nation_id    INTEGER NOT NULL REFERENCES nations(id) ON DELETE CASCADE,
+  type         TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'constructing', -- 'constructing' | 'active'
+  completes_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_buildings_nation ON buildings(nation_id);
+
+-- Units are produced over (game-)time before they appear on the map.
+-- 'producing' units sit in the queue with a ready_at; 'active' units are
+-- deployed and movable.
+ALTER TABLE units ADD COLUMN IF NOT EXISTS status   TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE units ADD COLUMN IF NOT EXISTS ready_at TIMESTAMPTZ;

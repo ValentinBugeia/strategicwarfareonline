@@ -74,27 +74,40 @@ travers les ports transférés de Codespaces. `VITE_API_URL` ne sert qu'en
 production si l'API est hébergée sur une autre origine.
 
 Ouvrez `http://localhost:5173`. Créez un compte, cliquez sur un pays non
-revendiqué pour prendre le contrôle d'une nation, achetez de l'infanterie,
-sélectionnez-la puis cliquez sur la carte pour la déplacer.
+revendiqué pour prendre le contrôle d'une nation, construisez une caserne
+pour débloquer l'infanterie, produisez une unité (elle se déploie à la
+capitale une fois fabriquée), sélectionnez-la puis cliquez sur la carte
+pour la déplacer (un vecteur et une heure d'arrivée s'affichent).
 
-## Modèle de jeu (MVP)
+## Modèle de jeu (inspiré de Supremacy 1914, version guerre moderne)
 
 - **Une nation par joueur** : premier arrivé, premier servi sur chaque pays.
-- **Économie** : chaque nation possédée gagne `income_rate` (50 par défaut)
-  toutes les 3 secondes. L'argent d'un joueur n'est visible que par lui
-  (`GET /api/nations/me`) ; la liste publique des nations
-  (`GET /api/nations`) n'expose que la possession, pas les finances.
+- **Économie multi-ressources** : chaque nation possédée produit en continu
+  quatre ressources — 💰 argent, 🛢️ pétrole, 🏭 matériel, 👥 main-d'œuvre.
+  Les stocks et la production d'un joueur ne sont visibles que par lui
+  (`GET /api/nations/me`) ; la liste publique (`GET /api/nations`) n'expose
+  que la possession.
+- **Bâtiments** : on construit des bâtiments modernes (raffinerie, usine
+  d'armement, caserne, centre financier) qui coûtent des ressources et
+  prennent du temps à construire. Une fois actifs ils augmentent la
+  production et/ou débloquent des types d'unités (ex : la caserne débloque
+  l'infanterie). Voir `server/src/game/economy.js`.
+- **Production d'unités** : les unités coûtent plusieurs ressources, exigent
+  le bâtiment requis, et sortent d'une **file de production** (temps de
+  fabrication) avant de se déployer sur la carte à la capitale.
+- **Temps de jeu accéléré** : le monde tourne `GAME_SPEED_MULTIPLIER` fois
+  plus vite que le temps réel (`server/src/game/config.js`), pour que
+  constructions, productions et déplacements se jouent en minutes tout en
+  gardant des vitesses d'unités réalistes.
 - **Unités militaires** : visibles par tous (pas de brouillard de guerre
-  pour l'instant) puisque voir les mouvements de troupes ennemies fait
-  partie de la tension du jeu. Actuellement un seul type (`infantry`) ;
-  le catalogue (`server/src/game/unitTypes.js`) est conçu pour accueillir
-  facilement navires, avions, hélicoptères, drones, véhicules terrestres
-  et agents secrets plus tard.
+  pour l'instant). Un seul type déployable aujourd'hui (`infantry`) ; le
+  catalogue (`server/src/game/unitTypes.js`) est prêt pour navires, avions,
+  hélicoptères, drones, véhicules et agents secrets.
 
 ## Prochaines étapes suggérées
 
-- Nouveaux types d'unités (navale, aérienne, blindée) avec coûts/vitesses
-  propres et déplacement contraint (terre/mer/air).
+- Nouveaux types d'unités (navale, aérienne, blindée) avec leurs bâtiments
+  (chantier naval, base aérienne) et déplacement contraint (terre/mer/air).
 - Combat entre unités quand elles se rencontrent.
 - Agents secrets / espionnage (révéler l'économie ou les mouvements d'une
   nation rivale, sabotage).

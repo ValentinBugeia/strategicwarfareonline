@@ -3,6 +3,8 @@ import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { getUnitType } from '../game/unitTypes.js';
+import { gameHoursToRealSeconds } from '../game/economy.js';
+import { debitResources } from '../game/resourceOps.js';
 import { withEta } from '../game/eta.js';
 
 export const unitsRouter = Router();
@@ -12,16 +14,23 @@ async function getOwnNation(userId) {
   return rows[0] ?? null;
 }
 
-// All units are visible to everyone: this is a shared battlefield, not a
-// fog-of-war simulation (yet) - seeing enemy troop movements is part of
-// the tension. Buying/moving is still restricted to the owning player.
+async function nationHasActiveBuilding(nationId, type) {
+  const { rowCount } = await pool.query(
+    "SELECT 1 FROM buildings WHERE nation_id = $1 AND type = $2 AND status = 'active' LIMIT 1",
+    [nationId, type]
+  );
+  return rowCount > 0;
+}
+
+// Only deployed ('active') units appear on the shared map; units still in
+// production stay private to their owner (returned via /api/nations/me).
 unitsRouter.get(
   '/',
   asyncHandler(async (_req, res) => {
     const { rows } = await pool.query(
       `SELECT id, nation_id AS "nationId", type, lat, lon, dest_lat AS "destLat",
               dest_lon AS "destLon", speed_kmh AS "speedKmh", hp
-       FROM units`
+       FROM units WHERE status = 'active'`
     );
     res.json(rows.map(withEta));
   })
@@ -41,30 +50,29 @@ unitsRouter.post(
     if (!nation) {
       return res.status(409).json({ error: 'You do not control a nation yet' });
     }
+    if (spec.requiresBuilding && !(await nationHasActiveBuilding(nation.id, spec.requiresBuilding))) {
+      return res.status(409).json({ error: `Requires an active ${spec.requiresBuilding}` });
+    }
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      // Conditional debit: the money check must happen atomically with the
-      // deduction, otherwise two concurrent purchases could both pass a
-      // read-then-write check and drive the treasury negative.
-      const debit = await client.query(
-        'UPDATE nations SET money = money - $1 WHERE id = $2 AND money >= $1 RETURNING id',
-        [spec.cost, nation.id]
-      );
-      if (debit.rowCount === 0) {
+      const paid = await debitResources(client, nation.id, spec.cost);
+      if (!paid) {
         await client.query('ROLLBACK');
-        return res.status(402).json({ error: 'Insufficient funds' });
+        return res.status(402).json({ error: 'Insufficient resources' });
       }
+      const readyInSeconds = gameHoursToRealSeconds(spec.buildGameHours);
+      // Queued at the capital: it deploys there once production finishes.
       const { rows } = await client.query(
-        `INSERT INTO units (nation_id, type, lat, lon, speed_kmh, hp)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, nation_id AS "nationId", type, lat, lon, dest_lat AS "destLat",
-                   dest_lon AS "destLon", speed_kmh AS "speedKmh", hp`,
-        [nation.id, type, nation.centroid_lat, nation.centroid_lon, spec.speedKmh, spec.hp]
+        `INSERT INTO units (nation_id, type, lat, lon, speed_kmh, hp, status, ready_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'producing', now() + ($7 || ' seconds')::interval)
+         RETURNING id, nation_id AS "nationId", type, lat, lon, speed_kmh AS "speedKmh", hp,
+                   status, ready_at AS "readyAt"`,
+        [nation.id, type, nation.centroid_lat, nation.centroid_lon, spec.speedKmh, spec.hp, readyInSeconds]
       );
       await client.query('COMMIT');
-      req.app.get('io').emit('units:changed');
+      req.app.get('io').to(`user:${req.user.id}`).emit('economy:changed');
       res.status(201).json(rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -93,9 +101,10 @@ unitsRouter.post(
       return res.status(409).json({ error: 'You do not control a nation yet' });
     }
 
+    // Only deployed units can be ordered to move.
     const { rows } = await pool.query(
       `UPDATE units SET dest_lat = $1, dest_lon = $2, updated_at = now()
-       WHERE id = $3 AND nation_id = $4
+       WHERE id = $3 AND nation_id = $4 AND status = 'active'
        RETURNING id, nation_id AS "nationId", type, lat, lon, dest_lat AS "destLat",
                  dest_lon AS "destLon", speed_kmh AS "speedKmh", hp`,
       [lat, lon, unitId, nation.id]

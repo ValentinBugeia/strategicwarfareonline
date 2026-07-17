@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { productionRates, unlockedUnitTypes } from '../game/economy.js';
 
 export const nationsRouter = Router();
 
@@ -20,17 +21,41 @@ nationsRouter.get(
   })
 );
 
+// Full private economy snapshot for the owning player: stockpiles, live
+// production rates, buildings (incl. those under construction), unit types
+// unlocked, and the production queue.
 nationsRouter.get(
   '/me',
   requireAuth,
   asyncHandler(async (req, res) => {
     const { rows } = await pool.query(
       `SELECT id, iso_code AS "isoCode", name, centroid_lat AS "centroidLat",
-              centroid_lon AS "centroidLon", money, income_rate AS "incomeRate", claimed_at AS "claimedAt"
+              centroid_lon AS "centroidLon", money, oil, materials, manpower, claimed_at AS "claimedAt"
        FROM nations WHERE owner_user_id = $1`,
       [req.user.id]
     );
-    res.json(rows[0] ?? null);
+    const nation = rows[0];
+    if (!nation) return res.json(null);
+
+    const { rows: buildings } = await pool.query(
+      `SELECT id, type, status, completes_at AS "completesAt"
+       FROM buildings WHERE nation_id = $1 ORDER BY created_at`,
+      [nation.id]
+    );
+    const { rows: queue } = await pool.query(
+      `SELECT id, type, ready_at AS "readyAt"
+       FROM units WHERE nation_id = $1 AND status = 'producing' ORDER BY ready_at`,
+      [nation.id]
+    );
+
+    const activeTypes = buildings.filter((b) => b.status === 'active').map((b) => b.type);
+    res.json({
+      ...nation,
+      productionRates: productionRates(activeTypes),
+      unlockedUnits: [...unlockedUnitTypes(activeTypes)],
+      buildings,
+      queue,
+    });
   })
 );
 
