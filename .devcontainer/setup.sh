@@ -31,6 +31,9 @@ SELECT 'CREATE DATABASE swo OWNER swo'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'swo')\gexec
 SQL
 
+echo "[setup] Root dependencies (concurrently for 'npm run dev')..."
+npm install
+
 echo "[setup] Server dependencies + schema..."
 cd server
 [ -f .env ] || cp .env.example .env
@@ -45,6 +48,5 @@ cd client
 npm install
 cd ..
 
-echo "[setup] Done. Start the game with:"
-echo "  terminal 1:  cd server && npm run dev"
-echo "  terminal 2:  cd client && npm run dev"
+echo "[setup] Done. Start the game with a single command from the project root:"
+echo "  npm run dev"
