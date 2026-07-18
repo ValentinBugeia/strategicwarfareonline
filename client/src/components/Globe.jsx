@@ -11,6 +11,16 @@ import { unitMaxHp } from '../economy.js';
 const UNCLAIMED_COLOR = Cesium.Color.fromCssColorString('rgba(170,170,170,0.30)');
 const worldGeoJson = feature(worldAtlas, worldAtlas.objects.countries);
 
+// Antarctica is a single polygon wrapping the entire 360° of longitude near
+// the south pole; Cesium's edge subdivision on it explodes the vertex count
+// and crashes the geometry worker ("Too many properties to enumerate"). It
+// isn't a claimable nation anyway (the seed skips it too), so exclude it from
+// the map layer.
+const mapGeoJson = {
+  ...worldGeoJson,
+  features: worldGeoJson.features.filter((f) => f.properties?.name !== 'Antarctica'),
+};
+
 // Features without a numeric id (a few disputed territories) are also
 // excluded from the seeded nations, so they're not claimable targets.
 const countryFeatures = worldGeoJson.features.filter((f) => f.id !== undefined);
@@ -108,7 +118,7 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
     // fixed height instead of clampToGround: ground-clamped primitives
     // need WebGL features (depth textures / stencil) that silently fail
     // to render on some software-rendered / restricted GPUs.
-    Cesium.GeoJsonDataSource.load(worldGeoJson, {
+    Cesium.GeoJsonDataSource.load(mapGeoJson, {
       stroke: Cesium.Color.BLACK.withAlpha(0.6),
       strokeWidth: 1,
       fill: UNCLAIMED_COLOR,
@@ -118,26 +128,25 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
       // the first viewer before this async load resolves; bail out rather
       // than touch a destroyed viewer's now-undefined internals.
       if (viewer.isDestroyed()) return;
-      viewer.dataSources.add(dataSource);
+      // Configure every polygon BEFORE adding the source to the viewer:
+      // dataSources.add() triggers geometry creation synchronously, so any
+      // property left at its default (arcType RHUMB) would be baked into a
+      // first geometry build - and that build crashes the worker with "Too
+      // many properties to enumerate" on huge spans before a later change
+      // could take effect. Setting arcType NONE up front avoids the crash.
       for (const entity of dataSource.entities.values) {
         if (entity.polygon) {
           // Lift fills slightly off the ellipsoid surface: at height 0 they
           // z-fight with the globe itself (especially on software-rendered
           // WebGL), which made both the fill and picking silently fail.
           entity.polygon.height = 3000;
-          // Coarsen edge subdivision. The default fine granularity on a
-          // raised polygon explodes the vertex count for huge spans (e.g.
-          // Russia across the antimeridian), crashing the geometry worker
-          // with "Too many properties to enumerate". A coarse granularity
-          // is indistinguishable at this scale and keeps fills AND the
-          // country outlines rendering.
-          entity.polygon.granularity = Cesium.Math.toRadians(8);
         }
         // GeoJsonDataSource sets entity.id from the feature's top-level
         // `id` (the numeric country code topojson-client attaches).
         const isoCode = String(entity.id).padStart(3, '0');
         countryEntitiesRef.current.set(isoCode, entity);
       }
+      viewer.dataSources.add(dataSource);
       // Read ownership through refs: this async load can finish after the
       // nations fetch, and the mount-time `nations` prop is an empty array.
       applyNationColors(countryEntitiesRef.current, nationsRef.current, myNationIdRef.current);
