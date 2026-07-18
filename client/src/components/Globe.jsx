@@ -59,8 +59,12 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
       // full OSM street/city detail was visual noise at this scale.
       baseLayer: new Cesium.ImageryLayer(
         new Cesium.UrlTemplateImageryProvider({
-          url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+          // @2x retina tiles (512px) keep the basemap and its labels crisp
+          // instead of upscaling 256px tiles into a blur.
+          url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
           subdomains: ['a', 'b', 'c', 'd'],
+          tileWidth: 512,
+          tileHeight: 512,
           credit: new Cesium.Credit('© OpenStreetMap contributors © CARTO'),
         })
       ),
@@ -89,10 +93,16 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
     // readable through them.
     viewer.imageryLayers.addImageryProvider(
       new Cesium.UrlTemplateImageryProvider({
-        url: 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
+        url: 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png',
         subdomains: ['a', 'b', 'c', 'd'],
+        tileWidth: 512,
+        tileHeight: 512,
       })
     );
+
+    // Load sharper imagery: the default screen-space error tolerance keeps
+    // low-res tiles on screen longer, which reads as blurry labels.
+    viewer.scene.globe.maximumScreenSpaceError = 1.5;
 
     // No real terrain is loaded (flat ellipsoid), so draw polygons at a
     // fixed height instead of clampToGround: ground-clamped primitives
@@ -110,11 +120,18 @@ export default function Globe({ nations, units, myNationId, selectedUnit, onSele
       if (viewer.isDestroyed()) return;
       viewer.dataSources.add(dataSource);
       for (const entity of dataSource.entities.values) {
-        // Lift fills slightly off the ellipsoid surface: at height 0 they
-        // z-fight with the globe itself (especially on software-rendered
-        // WebGL), which made both the fill and picking silently fail.
         if (entity.polygon) {
+          // Lift fills slightly off the ellipsoid surface: at height 0 they
+          // z-fight with the globe itself (especially on software-rendered
+          // WebGL), which made both the fill and picking silently fail.
           entity.polygon.height = 3000;
+          // Coarsen edge subdivision. The default fine granularity on a
+          // raised polygon explodes the vertex count for huge spans (e.g.
+          // Russia across the antimeridian), crashing the geometry worker
+          // with "Too many properties to enumerate". A coarse granularity
+          // is indistinguishable at this scale and keeps fills AND the
+          // country outlines rendering.
+          entity.polygon.granularity = Cesium.Math.toRadians(8);
         }
         // GeoJsonDataSource sets entity.id from the feature's top-level
         // `id` (the numeric country code topojson-client attaches).
