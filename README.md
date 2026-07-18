@@ -25,8 +25,27 @@ déplaçable sur le globe en temps réel.
 
 Le dépôt contient un devcontainer : à l'ouverture (et à chaque redémarrage)
 du Codespace, `.devcontainer/setup.sh` démarre PostgreSQL, crée la base,
-installe les dépendances, applique le schéma et importe les nations.
-Il ne reste qu'à lancer les deux serveurs :
+installe les dépendances, applique le schéma et importe les nations. Et une
+tâche VS Code (`.vscode/tasks.json`) lance automatiquement serveur + client
+à l'ouverture du dossier — il ne reste qu'à ouvrir le port 5173 transféré
+(onglet « Ports »). VS Code peut demander une fois d'autoriser les tâches
+automatiques.
+
+Si le Codespace existait avant ces fichiers, lancez une fois
+`bash .devcontainer/setup.sh`.
+
+### Démarrer serveur + client d'une seule commande
+
+À la racine du projet, une commande lance les deux ensemble (logs combinés
+et colorés, `Ctrl+C` arrête tout) :
+
+```bash
+npm install   # une fois, installe l'outil `concurrently`
+npm run dev    # démarre l'API (:4000) et le client (:5173)
+```
+
+C'est ce que la tâche VS Code exécute automatiquement. Les deux serveurs
+peuvent aussi être lancés séparément dans deux terminaux :
 
 ```bash
 # terminal 1
@@ -34,10 +53,6 @@ cd server && npm run dev
 # terminal 2
 cd client && npm run dev
 ```
-
-puis à ouvrir le port 5173 transféré (onglet « Ports » de VS Code). Si le
-Codespace existait avant ce commit, lancez une fois
-`bash .devcontainer/setup.sh` à la main.
 
 ## Mise en route
 

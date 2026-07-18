@@ -1,0 +1,14 @@
+{
+  "name": "strategicwarfareonline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Strategic Warfare Online - root scripts to run the whole stack",
+  "scripts": {
+    "setup": "bash .devcontainer/setup.sh",
+    "dev": "concurrently -k -n server,client -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "start": "concurrently -k -n server,client -c blue,green \"npm --prefix server start\" \"npm --prefix client run preview\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
