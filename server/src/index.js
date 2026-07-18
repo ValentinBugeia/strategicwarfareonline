@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 
 import { pool } from './db/pool.js';
+import { applySchema } from './db/migrate.js';
 import { authRouter } from './routes/auth.js';
 import { nationsRouter } from './routes/nations.js';
 import { unitsRouter } from './routes/units.js';
@@ -49,32 +50,31 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-// Fail fast with an actionable message instead of letting every request
-// 500 mysteriously when the database isn't ready.
-async function assertDatabaseReady() {
+// Apply the schema on every startup (it's idempotent) so a fresh `git pull`
+// that adds tables/columns never leaves the running server querying things
+// that don't exist yet - no manual `npm run migrate` step required.
+async function prepareDatabase() {
   try {
-    const { rows } = await pool.query('SELECT count(*)::int AS count FROM nations');
-    if (rows[0].count === 0) {
-      console.warn('WARNING: the nations table is empty - run `npm run seed` to import the world map.');
-    }
+    await applySchema();
   } catch (err) {
-    if (err.code === '42P01') {
-      console.error('Database tables are missing. Run `npm run migrate` then `npm run seed`, and restart.');
-    } else {
-      // AggregateError (e.g. connection refused on every resolved address)
-      // has an empty .message - dig the real causes out of .errors.
-      const detail =
-        err.message || err.errors?.map((e) => e.message).join(' / ') || err.code || String(err);
-      console.error(`Cannot query PostgreSQL via DATABASE_URL=${process.env.DATABASE_URL}`);
-      console.error(`  -> ${detail}`);
-      console.error('Is PostgreSQL running? Do the role and database from DATABASE_URL exist?');
-      console.error('In a Codespace, run: bash .devcontainer/setup.sh');
-    }
+    // AggregateError (e.g. connection refused on every resolved address)
+    // has an empty .message - dig the real causes out of .errors.
+    const detail =
+      err.message || err.errors?.map((e) => e.message).join(' / ') || err.code || String(err);
+    console.error(`Cannot reach PostgreSQL via DATABASE_URL=${process.env.DATABASE_URL}`);
+    console.error(`  -> ${detail}`);
+    console.error('Is PostgreSQL running? Do the role and database from DATABASE_URL exist?');
+    console.error('In a Codespace, run: bash .devcontainer/setup.sh');
     process.exit(1);
+  }
+
+  const { rows } = await pool.query('SELECT count(*)::int AS count FROM nations');
+  if (rows[0].count === 0) {
+    console.warn('WARNING: the nations table is empty - run `npm run seed` to import the world map.');
   }
 }
 
-await assertDatabaseReady();
+await prepareDatabase();
 attachSocketHandlers(io);
 startGameLoop(io);
 
